@@ -48,7 +48,7 @@ window.signIn = function (email, password) {
 }
 
 let sortByTime = function (a, b) {
-   return a.gcp_timestamp < b.gcp_timestamp;   
+   return a.gcp_timestamp < b.gcp_timestamp;
 }
 
 let fetchPing = function () {
@@ -59,47 +59,91 @@ let fetchPing = function () {
       //    connectDatabaseEmulator(dbRef, "localhost", 9000);
       // }
       const refPings = ref(dbRef, 'ping');
-      const pingInitModule = document.getElementById("initmodule");
+      const initModulesDiv = document.getElementById("initModule");
       onValue(refPings, (snapshot) => {
-         const data = snapshot.val();
-         //console.log(data);
-         pingInitModule.innerHTML = "";
+         const pingData = snapshot.val();
+         initModulesDiv.innerHTML = "";
          let modulePings = {};
-         for (let ping in data) {
-            if (!modulePings[data[ping].mac]) {
-               modulePings[data[ping].mac] = [];
+         for (let ping in pingData) {
+            if (!modulePings[pingData[ping].mac]) {
+               modulePings[pingData[ping].mac] = [];
             }
-            modulePings[data[ping].mac].push(data[ping]);
+            modulePings[pingData[ping].mac].push(pingData[ping]);
          }
          document.getElementById("results").style.display = 'block';
          for (let m in modulePings) {
-            const moduleDiv = document.createElement("div"); 
-            const moduleTitle = document.createElement("div"); 
-            moduleTitle.setAttribute("class", "title");
-            moduleDiv.appendChild(moduleTitle);
-            moduleTitle.innerHTML = modulePings[m][0].name;
-            moduleDiv.setAttribute("class", "module");
+            const initDiv = document.createElement("div");
+            const heapDiv = initDiv.cloneNode(true);
+            const initTitle = document.createElement("div");
+            initTitle.setAttribute("class", "title");
+            initDiv.appendChild(initTitle);
+            initTitle.innerHTML = "Restarts";
+
+            initDiv.setAttribute("class", "init");
+            heapDiv.setAttribute("class", "heap");
             let pings = modulePings[m];
+            let pingInit = [];
             for (let p in pings) {
                let ping = pings[p];
-               if(!ping.gcp_timestamp) continue;
+               if (!ping.gcp_timestamp) continue;
                if (ping.init) {
+                  pingInit.push(ping);
                   let newPing = document.createElement("div");
                   let date = new Date(ping.gcp_timestamp * 1000);
                   newPing.innerText = getFormattedDate(date);
-                  moduleDiv.appendChild(newPing);
+                  initDiv.appendChild(newPing);
+
                }
-               
+
             }
-            pingInitModule.appendChild(moduleDiv);
+            let traceHeap = {
+               type: "scatter",
+               mode: "lines",
+               name: 'Heap Size',
+               x: unpackDate(pings, 'date'),
+               y: unpack(pings, 'heap_size'),
+               line: { color: '#17BECF' }
+            };
+            let traceInit = {
+               type: "scatter",
+               mode: "markers",
+               name: 'Module Restart',
+               x: unpackDate(pingInit, 'date'),
+               y: unpackInit(pingInit, 'init'),
+               line: { color: '#F00' }
+            }
+            Plotly.newPlot(heapDiv, [traceHeap, traceInit], {
+               title: modulePings[m][0].name,
+               width: 1024,
+               height: 300
+            });
+            initModulesDiv.appendChild(initDiv);
+            initModulesDiv.appendChild(heapDiv);
+            initModulesDiv.appendChild(document.createElement("hr"));
          }
       });
    } catch (error) {
       console.error(error);
    }
 
+   let unpackInit = function (rows, key) {
+      return rows.map(function (row) { 
+         let init = row[key];
+         return init ? row.heap_size : 0; 
+      });
+   }
+   let unpackDate = function (rows, key) {
+      return rows.map(function (row) { 
+         let date = row[key].split('T');
+         return date[1]; 
+      });
+   }
+   let unpack = function (rows, key) {
+      return rows.map(function (row) { return row[key]; });
+   }
+
    let getFormattedDate = function (theDate) {
-      var month = addZero(theDate.getUTCMonth()+ 1) ;
+      var month = addZero(theDate.getUTCMonth() + 1);
       var day = addZero(theDate.getUTCDate());
       var hour = addZero(theDate.getUTCHours());
       var min = addZero(theDate.getUTCMinutes());

@@ -2,8 +2,8 @@
 <html>
 
 <head>
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-  <script src="https://d3js.org/d3.v7.min.js"></script>
+
+  <script src="https://cdn.plot.ly/plotly-2.9.0.min.js"></script>
   <script src="bundle.js"></script>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -14,15 +14,18 @@
       font-family: 'Roboto Mono', monospace;
     }
 
-    div.module {
-      float: left;
-      border: 1px solid black;
-      padding: 4px;
-      margin: 2px;
+    div.init {
+      display: table-cell;
+      vertical-align: top;
+      padding-top: 50px;
     }
-
-    div.module div.title {
+    
+    div.init div.title {
       font-weight: bold;
+    }
+    
+    div.heap {
+      display: table-cell;      
     }
   </style>
 </head>
@@ -43,9 +46,10 @@
   </div> -->
 
   <div id="results" style="display:none">
-    <h3>Modules init:</h3>
-    <div id="initmodule">
+
+    <div id="initModule">
     </div>
+
   </div>
 
 </body>
