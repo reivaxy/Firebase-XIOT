@@ -51,8 +51,9 @@ let sortByTime = function (a, b) {
    return a.gcp_timestamp < b.gcp_timestamp;
 }
 
-let fetchPing = function () {
+window.fetchPing = function () {
    try {
+      console.log("fetchPing");
       const dbRef = getDatabase();
       // if (location.hostname === "localhost") {
       //    // Point to the RTDB emulator running on localhost.
@@ -61,8 +62,8 @@ let fetchPing = function () {
       const refPings = ref(dbRef, 'ping');
       const initModulesDiv = document.getElementById("initModule");
       onValue(refPings, (snapshot) => {
+         console.log("Got values");
          const pingData = snapshot.val();
-         initModulesDiv.innerHTML = "";
          let modulePings = {};
          for (let ping in pingData) {
             if (!modulePings[pingData[ping].mac]) {
@@ -70,6 +71,7 @@ let fetchPing = function () {
             }
             modulePings[pingData[ping].mac].push(pingData[ping]);
          }
+         initModulesDiv.innerHTML = "";
          document.getElementById("results").style.display = 'block';
          for (let m in modulePings) {
             const initDiv = document.createElement("div");
@@ -89,18 +91,15 @@ let fetchPing = function () {
                if (ping.init) {
                   pingInit.push(ping);
                   let newPing = document.createElement("div");
-                  let date = new Date(ping.gcp_timestamp * 1000);
-                  newPing.innerText = getFormattedDate(date);
+                  newPing.innerText = getFormattedDate(ping.gcp_timestamp);
                   initDiv.appendChild(newPing);
-
                }
-
             }
             let traceHeap = {
                type: "scatter",
                mode: "lines",
                name: 'Heap Size',
-               x: unpackDate(pings, 'date'),
+               x: unpackDate(pings, 'gcp_timestamp'),
                y: unpack(pings, 'heap_size'),
                line: { color: '#17BECF' }
             };
@@ -108,7 +107,7 @@ let fetchPing = function () {
                type: "scatter",
                mode: "markers",
                name: 'Module Restart',
-               x: unpackDate(pingInit, 'date'),
+               x: unpackDate(pingInit, 'gcp_timestamp'),
                y: unpackInit(pingInit, 'init'),
                line: { color: '#F00' }
             }
@@ -126,23 +125,24 @@ let fetchPing = function () {
       console.error(error);
    }
 
-   let unpackInit = function (rows, key) {
+   window.unpackInit = function (rows, key) {
       return rows.map(function (row) { 
          let init = row[key];
          return init ? row.heap_size : 0; 
       });
    }
-   let unpackDate = function (rows, key) {
+   window.unpackDate = function (rows, key) {
       return rows.map(function (row) { 
-         let date = row[key].split('T');
+         let date = getFormattedDate(row[key]).split(' ');
          return date[1]; 
       });
    }
-   let unpack = function (rows, key) {
+   window.unpack = function (rows, key) {
       return rows.map(function (row) { return row[key]; });
    }
 
-   let getFormattedDate = function (theDate) {
+window.getFormattedDate = function (date) {
+      let theDate = new Date(date* 1000);
       var month = addZero(theDate.getUTCMonth() + 1);
       var day = addZero(theDate.getUTCDate());
       var hour = addZero(theDate.getUTCHours());
