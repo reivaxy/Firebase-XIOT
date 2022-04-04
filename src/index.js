@@ -66,6 +66,10 @@ window.fetchPing = function () {
          const pingData = snapshot.val();
          let modulePings = {};
          for (let ping in pingData) {
+            // gcp_timestamp is added by a Firebase function, might not have triggered yet 
+            // We'll get the data again when it updates the ping document.
+            if (!pingData[ping].gcp_timestamp) continue;
+
             if (!modulePings[pingData[ping].mac]) {
                modulePings[pingData[ping].mac] = [];
             }
@@ -87,11 +91,11 @@ window.fetchPing = function () {
             let pingInit = [];
             for (let p in pings) {
                let ping = pings[p];
-               if (!ping.gcp_timestamp) continue;
                if (ping.init) {
                   pingInit.push(ping);
                   let newPing = document.createElement("div");
-                  newPing.innerText = getFormattedDate(ping.gcp_timestamp);
+                  let initText = getFormattedDate(ping.gcp_timestamp) + (ping.init_reason ? "\n" + ping.init_reason : "");
+                  newPing.innerText = initText;
                   initDiv.appendChild(newPing);
                }
             }
@@ -101,7 +105,8 @@ window.fetchPing = function () {
                name: 'Heap Size',
                x: unpackDate(pings, 'gcp_timestamp'),
                y: unpack(pings, 'heap_size'),
-               line: { color: '#17BECF' }
+               line: { color: '#17BECF' },
+               yaxis: "y"
             };
             let traceInit = {
                type: "scatter",
@@ -109,13 +114,69 @@ window.fetchPing = function () {
                name: 'Module Restart',
                x: unpackDate(pingInit, 'gcp_timestamp'),
                y: unpackInit(pingInit, 'init'),
+               text: unpack(pings, 'init_reason'),
                line: { color: '#F00' }
-            }
-            Plotly.newPlot(heapDiv, [traceHeap, traceInit], {
-               title: modulePings[m][0].name,
+            };
+            let traceFailedMessage = {
+               type: "scatter",
+               line: { color: "blue"},
+               mode: "lines", 
+               name: "Failed messages",
+               x: unpackDate(pings, 'gcp_timestamp'),
+               y: unpack(pings, 'failed_msg'),
+               yaxis: "y3"
+            };
+            let traceLostMessage = {
+               type: "scatter",
+               line: { color: "orange"},
+               mode: "lines", 
+               name: "Lost messages",
+               x: unpackDate(pings, 'gcp_timestamp'),
+               y: unpack(pings, 'lost_msg'),
+               yaxis: "y4"
+            };
+            let traceRetriedMessage = {
+               type: "scatter",
+               line: { color: "purple"},
+               mode: "lines", 
+               name: "Retried messages",
+               x: unpackDate(pings, 'gcp_timestamp'),
+               y: unpack(pings, 'retried_msg'),
+               yaxis: "y5"
+            };
+
+
+            let lastPing = modulePings[m][modulePings[m].length -1 ]
+            let lang = lastPing.lang || "en"
+            let layout = {
+               title: lastPing.name,
                width: 1024,
-               height: 300
-            });
+               height: 300,
+               yaxis3: {
+                  color: "blue",
+                  side: "right",
+                  overlaying: "y",
+                  range: [0, 20]
+               },
+               yaxis4: {
+                  color: "orange",
+                  side: "right",
+                  overlaying: "y",
+                  range: [0, 20]
+               },
+               yaxis5: {
+                  color: "purple",
+                  side: "right",
+                  overlaying: "y",
+                  range: [0, 20]
+               }
+            };
+            let config = {
+               displayModeBar: true,
+               locale: lang
+            };
+
+            Plotly.newPlot(heapDiv, [traceHeap,  traceInit, traceFailedMessage, traceLostMessage, traceRetriedMessage], layout, config);
             initModulesDiv.appendChild(initDiv);
             initModulesDiv.appendChild(heapDiv);
             initModulesDiv.appendChild(document.createElement("hr"));
@@ -138,7 +199,7 @@ window.fetchPing = function () {
       });
    }
    window.unpack = function (rows, key) {
-      return rows.map(function (row) { return row[key]; });
+      return rows.map(function (row) { return row[key] || 0; });
    }
 
 window.getFormattedDate = function (date) {
