@@ -105,8 +105,7 @@ window.fetchPing = function () {
                name: 'Heap Size',
                x: unpackDate(pings, 'gcp_timestamp'),
                y: unpack(pings, 'heap_size'),
-               line: { color: '#17BECF' },
-               yaxis: "y"
+               line: { color: '#17BECF' }
             };
             let traceInit = {
                type: "scatter",
@@ -152,6 +151,11 @@ window.fetchPing = function () {
                title: lastPing.name,
                width: 1024,
                height: 300,
+               xaxis: {
+                  tickformat: "%H:%M:%S",
+                  tickangle: "90",
+                  dtick: 1800000                 
+               },
                yaxis3: {
                   color: "blue",
                   side: "right",
@@ -194,8 +198,8 @@ window.fetchPing = function () {
    }
    window.unpackDate = function (rows, key) {
       return rows.map(function (row) { 
-         let date = getFormattedDate(row[key]).split(' ');
-         return date[1]; 
+         let date = getFormattedDate(row[key]);
+         return date; 
       });
    }
    window.unpack = function (rows, key) {
@@ -209,7 +213,7 @@ window.getFormattedDate = function (date) {
       var hour = addZero(theDate.getUTCHours());
       var min = addZero(theDate.getUTCMinutes());
       var sec = addZero(theDate.getUTCSeconds());
-      var dateStr = `${theDate.getUTCFullYear()}/${month}/${day} ${hour}:${min}:${sec} UTC`;
+      var dateStr = `${theDate.getUTCFullYear()}-${month}-${day}T${hour}:${min}:${sec}`;
       return dateStr;
    }
    let addZero = function (value) {
