@@ -149,7 +149,7 @@ window.fetchPing = function () {
             let lang = lastPing.lang || "en"
             let layout = {
                title: lastPing.name,
-               width: 1024,
+               width: 1500,
                height: 300,
                xaxis: {
                   tickformat: "%H:%M:%S",
