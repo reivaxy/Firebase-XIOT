@@ -16,25 +16,50 @@
       font-size:12px;
     }
 
-    div.init {
+    div.list {
       display: table-cell;
       vertical-align: top;
       padding-top: 20px;
+      width: 450px;
     }
     
-    div.init div.title {
+    div div.title {
       font-weight: bold;
     }
     
-    div.heap {
-      display: table-cell;      
+    div.panel {
+      top: 40px;
+      position: relative;    
+      border-top:1px solid black; 
     }
+
+    #tabs li {
+      list-style: none;
+      float: left;
+      position: relative;
+      top: 0;
+      margin: 1px 0.2em 0 0;
+      border: 1px solid black;
+      padding: 10px;
+      white-space: nowrap;   
+      background-color: gainsboro;
+    }
+    #tabs li.selected {
+      border-bottom: 1px solid white;
+      background-color: white;
+      z-index: 100;
+    }
+
+    #tabs li span {
+      cursor: pointer;
+    }
+
   </style>
 </head>
 
 <body>
   <div id="message">
-    <h1>XIOTModule management page</h1>
+    <h1>XIOTModule dashboard</h1>
   </div>
 
   <div id="login">
@@ -48,9 +73,9 @@
   </div> -->
 
   
-  <div id="results" style="display:none">
+  <div id="results" style="display:none" onclick="selectTab(event)">
 
-    <div id="initModule">
+    <div id="moduleTabs">
     </div>
 
   </div>
