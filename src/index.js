@@ -1,11 +1,14 @@
 
 import { initializeApp } from "firebase/app";
 import { getAuth, setPersistence, browserSessionPersistence, signInWithEmailAndPassword } from "firebase/auth";
-import { getDatabase, ref, onValue, connectDatabaseEmulator } from "firebase/database";
+import { getDatabase, ref, child, get, onValue } from "firebase/database";
 
 window.selectedM = '';
 window.signIn = function (email, password) {
    try {
+      window.onError = function() {
+         document.body.style.backgroundColor = "red";
+      }
       const firebaseConfig = {
          apiKey: "AIzaSyBBPRQqO4YMb-B6sTBrA6CEQZI-sK9DOE8",
          authDomain: "iotfeeder-22b9b.firebaseapp.com",
@@ -53,47 +56,60 @@ let sortByTime = function (a, b) {
 window.fetchData = function () {
    try {
       console.log("fetchData");
-      const dbRef = getDatabase();
+      const db = getDatabase();
+      const dbRef = ref(db);
       // if (location.hostname === "localhost") {
       //    // Point to the RTDB emulator running on localhost.
       //    connectDatabaseEmulator(dbRef, "localhost", 9000);
       // }
-      const refModules = ref(dbRef, '/module');
-      onValue(refModules, (snapshot) => {
-         window.modules = {};
+      // const refModules = ref(db, '/module');
+      // onValue(refModules, (snapshot) => {
+      get(child(dbRef, '/module')).then((snapshot) => {
+         window.modules = [];
+
          const moduleData = snapshot.val();
          for (let mac in moduleData) {
-            modules[mac] = moduleData[mac];
+            window.modules.push(moduleData[mac]);
          }
+         window.modules.sort((a, b) => {
+            return (a.name.localeCompare(b.name));
+         })
+
+      }).then(function() {
+
+         // const refALerts = ref(db, '/alert');
+         // onValue(refALerts, (snapshot) => {
+         get(child(dbRef, '/alert')).then((snapshot) => {
+            window.moduleAlerts = {};
+            window.processModuleData(snapshot, window.moduleAlerts, 'alert') 
+         });
+      }).then(function() {
+         // const refLogs = ref(db, '/log');
+         // onValue(refLogs, (snapshot) => {
+         get(child(dbRef, '/log')).then((snapshot) => {
+            window.moduleLogs = {};
+            window.processModuleData(snapshot, window.moduleLogs, 'log');
+         });
+      }).then(function() {
+         // const refPings = ref(db, '/ping');
+         // onValue(refPings, (snapshot) => { 
+         get(child(dbRef, '/ping')).then((snapshot) => {
+            window.modulePings = {};
+            window.processModuleData(snapshot, window.modulePings, 'ping');
+            window.displayTabs();
+         });     
+      }).catch(error => {
+         if(error) {
+            alert(error);
+         }
+         
       });
-
-      const refALerts = ref(dbRef, '/alert');
-      onValue(refALerts, (snapshot) => {
-         window.moduleAlerts = {};
-         window.processModuleData(snapshot, window.moduleAlerts) 
-      });
-
-      const refLogs = ref(dbRef, '/log');
-      onValue(refLogs, (snapshot) => {
-         window.moduleLogs = {};
-         window.processModuleData(snapshot, window.moduleLogs);
-      });
-
-      const refPings = ref(dbRef, '/ping');
-      onValue(refPings, (snapshot) => { 
-         window.modulePings = {};
-         window.processModuleData(snapshot, window.modulePings);
-         window.displayTabs();
-       });
-
-      
-
    } catch (error) {
       console.error(error);
    }
 }
 
-window.processModuleData = function (snapshot, hashMap) {
+window.processModuleData = function (snapshot, hashMap, type) {
    //console.log("Got values");
    const eventData = snapshot.val();
    //console.log(pingData);
@@ -106,35 +122,59 @@ window.processModuleData = function (snapshot, hashMap) {
       if (!hashMap[eventData[evt].mac]) {
          hashMap[eventData[evt].mac] = [];
       }
+      // The disconnection alerts can't have the heap_max_block_size field and we don't want 
+      if (type == 'alert') {
+         if (undefined == eventData[evt].heap_max_block_size) {
+            eventData[evt].heap_max_block_size = window.previousAlertMaxHeapBlock;
+         } else {
+            window.previousAlertMaxHeapBlock = eventData[evt].heap_max_block_size;
+         }
+      }
       hashMap[eventData[evt].mac].push(eventData[evt]);
    }
 
 }
 
-window.selectTab = function (evt) {
+window.selectTabByEvent = function (evt) {
    let sourceElt = evt.target;
    let m = sourceElt.getAttribute('m');
+   if (m) {
+      window.selectTabByMac(m);
+      let name = sourceElt.innerText;
+      document.title = name;
+   }
+
+   
+}
+window.selectTabByMac = function (m) {
+   document.location.href=document.location.origin + '#' + m;
    let previousM = '';
    if (m) {
-      window.selectedM = m
+      window.selectedM = m;
       let previousSelectedTab = document.querySelector("li.selected");
       if (previousSelectedTab) {
          previousSelectedTab.className = '';
          previousM = previousSelectedTab.getAttribute('m');
       }
       let newSelectedTab = document.getElementById(`tab-${m}`);
+      if (!newSelectedTab) {
+         m = window.modules[0].mac;
+         newSelectedTab = document.getElementById(`tab-${m}`);
+      }
       newSelectedTab.className = "selected";
       let previousSelectedPanel = document.getElementById(`panel-${previousM}`);
       if (previousSelectedPanel) {
          previousSelectedPanel.style.display = 'none';
+         previousSelectedPanel.className = "panel";
       }
       let newSelectedPanel = document.getElementById(`panel-${m}`);
       newSelectedPanel.style.display = 'block';
+      newSelectedPanel.className = "panel selected";
    }
 
 }
 
-window.addTitle = function(domElt, title) {
+window.addListTitle = function(domElt, title) {
    const titleDiv = document.createElement("div");
    titleDiv.setAttribute("class", "title");
    domElt.appendChild(titleDiv);
@@ -151,11 +191,15 @@ window.displayTabs = function () {
    moduleTabsDiv.innerHTML = '<ul id="tabs"></ul>';
    const tabsUl = document.getElementById("tabs");
    document.getElementById("results").style.display = 'block';
-   for (let m in modules) {
+   console.log("Hash: " + document.location.hash);
+   window.selectedM = document.location.hash.replace('#', '');
+   
+   for (let i = 0 ; i < modules.length; i ++) {
+      let m = modules[i].mac;
       let oneTabLi = document.createElement("li");
       oneTabLi.setAttribute("id", `tab-${m}`);
       oneTabLi.setAttribute("m", `${m}`);
-      oneTabLi.innerHTML = `<span m="${m}">${modules[m].name}</span>`;
+      oneTabLi.innerHTML = `<span m="${m}">${modules[i].name}</span>`;
 
       tabsUl.appendChild(oneTabLi);
 
@@ -163,31 +207,29 @@ window.displayTabs = function () {
       onePanelDiv.setAttribute("id", `panel-${m}`);
       moduleTabsDiv.appendChild(onePanelDiv);
       onePanelDiv.className = "panel";
-      if (window.selectedM == '' || window.selectedM == m) {
-         window.selectedM = m;
-         oneTabLi.className = "selected";
-      } else {
-         onePanelDiv.style.display = 'none';
-      }
-   }
+      onePanelDiv.style.display = 'none';
 
-   for (let m in modulePings) {
       const initDiv = document.createElement("div");
       const alertDiv = document.createElement("div");
       const logDiv = document.createElement("div");
       const heapDiv = document.createElement("div");
 
-      window.addTitle(initDiv, "Restarts");
-      window.addTitle(alertDiv, "Alerts");
-      window.addTitle(logDiv, "Logs");
+      window.addListTitle(initDiv, "Restarts");
+      window.addListTitle(alertDiv, "Alerts");
+      window.addListTitle(logDiv, "Logs");
       heapDiv.setAttribute("class", "heap");
+      const logFilter = document.createElement("div");
+      logFilter.className = "topRightCorner";
+      logFilter.innerHTML = '<input type="checkbox" onclick="window.filterLogs(event)"/><span>Only show food logs</span>';
+      logDiv.appendChild(logFilter);
+      logDiv.className = "logs list";
 
       let pings = modulePings[m];
-      let pingInit = [];
+      let pingInits = [];
       for (let p in pings) {
          let ping = pings[p];
          if (ping.init) {
-            pingInit.push(ping);
+            pingInits.push(ping);
             let newPing = document.createElement("div");
             let initText = getFormattedDate(ping.gcp_timestamp) + (ping.init_reason ? ": " + ping.init_reason : "");
             newPing.innerText = initText;
@@ -211,9 +253,15 @@ window.displayTabs = function () {
          let newLog = document.createElement("div");
          let initText = getFormattedDate(log.gcp_timestamp) + ": " + log.message + (log.quantity ? ` de quantité: ${log.quantity}` : "");
          newLog.innerText = initText;
+         // Set a specific class on non food distribution logs to be able to filter them out
+         if (!log.quantity) {
+            newLog.className = "nofoodlog"
+         }
          logDiv.appendChild(newLog);
       }      
 
+      window.logMinHeapBlockLog = 100000;
+      window.maxHeap = 37000;
       let traceHeap = {
          type: "scatter",
          mode: "lines",
@@ -222,15 +270,53 @@ window.displayTabs = function () {
          y: unpack(pings, 'heap_size'),
          line: { color: '#17BECF' }
       };
+      let traceHeapMaxBlock = {
+         type: "scatter",
+         mode: "lines",
+         name: 'Pings Max Bloc Size',
+         x: unpackDate(pings, 'gcp_timestamp'),
+         y: unpackSaveMin(pings, 'heap_max_block_size'),
+         line: { color: '#47a1ad' }
+      };
+
+      let traceHeapMaxBlockLogs = {
+         type: "scatter",
+         line: { color: "#6da8b0" },
+         mode: "lines+markers",
+         name: "Logs Max Bloc Size",
+         x: unpackDate(logs, 'gcp_timestamp'),
+         y: unpackSaveMin(logs, 'heap_max_block_size')
+      };
+
+      let traceHeapMaxBlockAlerts = {
+         type: "scatter",
+         line: { color: "#8fb5ba" },
+         mode: "lines+markers",
+         name: "Alerts Max Bloc Size",
+         x: unpackDate(alerts, 'gcp_timestamp'),
+         y: unpackSaveMin(alerts, 'heap_max_block_size')
+         
+      };
+
+
       let traceInit = {
          type: "scatter",
          mode: "markers",
          name: 'Module Restart',
-         x: unpackDate(pingInit, 'gcp_timestamp'),
-         y: unpackInit(pingInit, 'init'),
-         text: unpack(pings, 'init_reason'),
+         x: unpackDate(pingInits, 'gcp_timestamp'),
+         y: unpackInit(pingInits, 'init'),
+         text: unpack(pingInits, 'init_reason'),
          line: { color: '#F00' }
+
       };
+      if (window.logMinHeapBlockLog < 100000) {
+         traceInit.error_y = {
+            array: unpackInitMinus(pingInits, 'init'),
+            color: "red",
+            symmetric: false
+         }
+      }
+
       let traceFailedMessage = {
          type: "scatter",
          line: { color: "blue" },
@@ -259,13 +345,15 @@ window.displayTabs = function () {
          yaxis: "y5"
       };
 
-
-      let lastPing = modulePings[m][modulePings[m].length - 1]
-      let lang = lastPing.lang || "en"
+      let lang = "en";
+      if (modulePings[m]) {
+         let lastPing = modulePings[m][modulePings[m].length - 1]
+         lang = lastPing.lang || "en"
+      }
       let layout = {
-         title: lastPing.name + "<br>(version " + modules[modulePings[m][0].mac].version + ")",
+         title: modules[i].name,
          width: 1500,
-         height: 300,
+         height: 400,
          xaxis: {
             tickformat: "%H:%M:%S",
             tickangle: "90",
@@ -296,29 +384,91 @@ window.displayTabs = function () {
          locale: lang
       };
 
-      Plotly.newPlot(heapDiv, [traceHeap, traceInit, traceFailedMessage, traceLostMessage, traceRetriedMessage], layout, config);
+      let traces = [traceHeap, traceInit, traceFailedMessage, traceLostMessage, traceRetriedMessage];
+      if (modules[i].heap_max_block_size) {
+         // problem with alerts is that disconnection alerts do not have info on heap size => 0 => ruins autoscaling
+         traces.unshift(traceHeapMaxBlockAlerts);
+
+         traces.unshift(traceHeapMaxBlockLogs);
+         traces.unshift(traceHeapMaxBlock);
+      }
+      Plotly.newPlot(heapDiv, traces, layout, config);
       let moduleDiv = document.getElementById(`panel-${m}`);
+
+      let infoDiv = document.createElement("div");
+      infoDiv.innerHTML =  "Name: " + modules[i].name 
+                           + "<br>Type: " + modules[i].type
+                           + "<br>Firmware version: " + modules[i].version 
+                           + "<br>Firmware language: " + modules[i].lang
+                           + "<br>Local IP: <a target=_new href='http://" + modules[i].ip + "'>" + modules[i].ip + "</a>"
+                           + "<br>Mac address: " + modules[i].mac
+                           + "<br>Pushover config: " + (modules[i].ta != undefined && modules[i].tu != undefined)
+                           + (modules[i].with_ir ? "<br>IR detector: " + modules[i].with_ir : "");
+                           
       moduleDiv.appendChild(heapDiv);
+      moduleDiv.appendChild(infoDiv);
       moduleDiv.appendChild(initDiv);
       moduleDiv.appendChild(alertDiv);
       moduleDiv.appendChild(logDiv);
    }
 
+   if (window.selectedM != '') {
+      window.selectTabByMac(window.selectedM);
+   }
+
+   // If no module selected, select the first one
+   // this happens when the url hash does not match a module
+   if (document.querySelector("li.selected") == null) {
+      window.selectTabByMac(modules[0].mac);
+   }
+
 }
+
+window.filterLogs = function(evt) {
+   let logsDiv = document.querySelector("div.panel.selected div.logs");
+   let className = logsDiv.className;
+   if (className.indexOf(" filter") != -1) {
+      className = className.replace(" filter", "");
+   } else {
+      className = `${className} filter`;
+   }
+   logsDiv.className = className;
+}
+
 window.unpackInit = function (rows, key) {
+   if (!rows) return [];
    return rows.map(function (row) {
       let init = row[key];
-      return init ? row.heap_size : 0;
+      return init ? window.maxHeap: 0;
+   });
+}
+window.unpackInitMinus = function (rows, key) {
+   if (!rows) return [];
+   return rows.map(function (row) {
+      let init = row[key];
+      return init ? window.logMinHeapBlockLog - window.maxHeap : 0;
    });
 }
 window.unpackDate = function (rows, key) {
+   if (!rows) return [];
    return rows.map(function (row) {
       let date = getFormattedDate(row[key]);
       return date;
    });
 }
 window.unpack = function (rows, key) {
+   if (!rows) return [];
    return rows.map(function (row) { return row[key] || 0; });
+}
+
+window.unpackSaveMin = function (rows, key) {
+   if (!rows) return [];
+   return rows.map(function (row) { 
+      if (row[key] && row[key] < window.logMinHeapBlockLog) {
+         window.logMinHeapBlockLog = row[key];
+      }
+      return row[key] || 0; 
+   });
 }
 
 window.getFormattedDate = function (date) {
