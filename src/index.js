@@ -268,6 +268,7 @@ window.displayTabs = function () {
          name: 'Heap Size',
          x: unpackDate(pings, 'gcp_timestamp'),
          y: unpack(pings, 'heap_size'),
+         hovertemplate: unpackHover(pings, "%{x|%Y-%m-%d %H:%M:%S}<br>%{y}", "none"),
          line: { color: '#17BECF' }
       };
       let traceHeapMaxBlock = {
@@ -276,6 +277,7 @@ window.displayTabs = function () {
          name: 'Pings Max Bloc Size',
          x: unpackDate(pings, 'gcp_timestamp'),
          y: unpackSaveMin(pings, 'heap_max_block_size'),
+         hovertemplate: unpackHover(pings, "%{x|%Y-%m-%d %H:%M:%S}<br>%{y}", "none"),
          line: { color: '#47a1ad' }
       };
 
@@ -285,7 +287,8 @@ window.displayTabs = function () {
          mode: "lines+markers",
          name: "Logs Max Bloc Size",
          x: unpackDate(logs, 'gcp_timestamp'),
-         y: unpackSaveMin(logs, 'heap_max_block_size')
+         y: unpackSaveMin(logs, 'heap_max_block_size'),
+         hovertemplate: unpackHover(logs, "%{x|%Y-%m-%d %H:%M:%S}<br>%{y}", "none")
       };
 
       let traceHeapMaxBlockAlerts = {
@@ -294,7 +297,8 @@ window.displayTabs = function () {
          mode: "lines+markers",
          name: "Alerts Max Bloc Size",
          x: unpackDate(alerts, 'gcp_timestamp'),
-         y: unpackSaveMin(alerts, 'heap_max_block_size')
+         y: unpackSaveMin(alerts, 'heap_max_block_size'),
+         hovertemplate: unpackHover(alerts, "%{x|%Y-%m-%d %H:%M:%S}<br>%{y}", "none")
          
       };
 
@@ -305,7 +309,7 @@ window.displayTabs = function () {
          name: 'Module Restart',
          x: unpackDate(pingInits, 'gcp_timestamp'),
          y: unpackInit(pingInits, 'init'),
-         text: unpack(pingInits, 'init_reason'),
+         hovertemplate: unpackHover(pingInits, "%{x|%Y-%m-%d %H:%M:%S}", "init_reason"),
          line: { color: '#F00' }
 
       };
@@ -324,6 +328,7 @@ window.displayTabs = function () {
          name: "Failed messages",
          x: unpackDate(pings, 'gcp_timestamp'),
          y: unpack(pings, 'failed_msg'),
+         hovertemplate: unpackHover(pings, "%{x|%Y-%m-%d %H:%M:%S}<br>%{y}", "none"),
          yaxis: "y3"
       };
       let traceLostMessage = {
@@ -333,6 +338,7 @@ window.displayTabs = function () {
          name: "Lost messages",
          x: unpackDate(pings, 'gcp_timestamp'),
          y: unpack(pings, 'lost_msg'),
+         hovertemplate: unpackHover(pings, "%{x|%Y-%m-%d %H:%M:%S}<br>%{y}", "none"),
          yaxis: "y4"
       };
       let traceRetriedMessage = {
@@ -342,6 +348,7 @@ window.displayTabs = function () {
          name: "Retried messages",
          x: unpackDate(pings, 'gcp_timestamp'),
          y: unpack(pings, 'retried_msg'),
+         hovertemplate: unpackHover(pings, "%{x|%Y-%m-%d %H:%M:%S}<br>%{y}", "none"),
          yaxis: "y5"
       };
 
@@ -403,7 +410,7 @@ window.displayTabs = function () {
                            + "<br>Local IP: <a target=_new href='http://" + modules[i].ip + "'>" + modules[i].ip + "</a>"
                            + "<br>Mac address: " + modules[i].mac
                            + "<br>Pushover config: " + (modules[i].ta != undefined && modules[i].tu != undefined)
-                           + (modules[i].with_ir ? "<br>IR detector: " + modules[i].with_ir : "");
+                           + "<br>IR detector: " + modules[i].with_ir;
                            
       moduleDiv.appendChild(heapDiv);
       moduleDiv.appendChild(infoDiv);
@@ -433,6 +440,17 @@ window.filterLogs = function(evt) {
       className = `${className} filter`;
    }
    logsDiv.className = className;
+}
+
+window.unpackHover = function (rows, format, field) {
+   if (!rows) return [];
+   return rows.map(function (row) {
+      let result = format;
+      if (row[field]) {
+         result += '<br>' + row[field];
+      } 
+      return result;
+   });   
 }
 
 window.unpackInit = function (rows, key) {
@@ -473,12 +491,12 @@ window.unpackSaveMin = function (rows, key) {
 
 window.getFormattedDate = function (date) {
    let theDate = new Date(date * 1000);
-   var month = addZero(theDate.getUTCMonth() + 1);
-   var day = addZero(theDate.getUTCDate());
-   var hour = addZero(theDate.getUTCHours());
-   var min = addZero(theDate.getUTCMinutes());
-   var sec = addZero(theDate.getUTCSeconds());
-   var dateStr = `${theDate.getUTCFullYear()}-${month}-${day} ${hour}:${min}:${sec}`;
+   var month = addZero(theDate.getMonth() + 1);
+   var day = addZero(theDate.getDate());
+   var hour = addZero(theDate.getHours());
+   var min = addZero(theDate.getMinutes());
+   var sec = addZero(theDate.getSeconds());
+   var dateStr = `${theDate.getFullYear()}-${month}-${day} ${hour}:${min}:${sec}`;
    return dateStr;
 }
 let addZero = function (value) {

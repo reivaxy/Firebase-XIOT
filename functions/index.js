@@ -34,14 +34,14 @@ const MSG_MODULE_OFFLINE = "Module is no longer online";
 exports.deleteOldItems = functions.region('europe-west1').pubsub.schedule("every monday 09:00").onRun( (context) => {
      deleteOld("ping");
      deleteOld("log");    
-//     deleteOld("alert");     // May be keep longer ?
+     deleteOld("alert");     // May be keep longer ?
      return null;
 });
 
 function deleteOld(type) {
      functions.logger.log(`Deleting ${type}s older than ${PING_MAX_AGE_D} days`);
      const cutoff = Math.ceil(Date.now() / 1000) - PING_MAX_AGE_S ;
-     const itemsRef = admin.database().ref(type).orderByChild(GCP_TIMESTAMP_NAME).endAt(cutoff).limitToFirst(2000);
+     const itemsRef = admin.database().ref(type).orderByChild(GCP_TIMESTAMP_NAME).endAt(cutoff);
      deleteDocuments(itemsRef, type);
 }
 
