@@ -124,31 +124,64 @@ function addZero(value) {
      return value < 10? "0" + value : value;
 }
 
+
+exports.deleteStuff = functions.region('europe-west1').https.onRequest(async (req, res) => {
+     // Grab the parameters.
+     const mac = req.query.mac;
+     let errorMessage = "";
+     if (!mac) {
+          errorMessage += "Provide a value for mac<br>";
+     }
+     const type = req.query.type;
+     if (!type) {
+          errorMessage += "Provide a value for type<br>";
+     }
+     const pattern = req.query.pattern;
+     if (!pattern) {
+          errorMessage += "Provide a value for pattern<br>";
+     }
+     if (errorMessage) {
+          res.send(errorMessage);
+          return;
+     }
+     functions.logger.log(`Deleting pattern '${pattern}' for module '${mac}' on type '${type}'`);
+     let result = cleanupModuleRelatedDocuments(mac, type, pattern);
+     res.send("Done");
+   });
+
 // Cleanup related logs, pings and alerts when a module is deleted
 exports.cleanupOnModuleDeletion = functions.region('europe-west1').database.ref('/module/{moduleMac}').onDelete((snapshot, context) => {
      var mac = context.params.moduleMac;
      functions.logger.log(`cleanupOnModuleDeletion for module ${mac}`);
-     cleanupModuleRelatedDocuments(mac, "ping");
-     cleanupModuleRelatedDocuments(mac, "log");
-     cleanupModuleRelatedDocuments(mac, "alert");
+     cleanupModuleRelatedDocuments(mac, "ping", null);
+     cleanupModuleRelatedDocuments(mac, "log", null);
+     cleanupModuleRelatedDocuments(mac, "alert", null);
      return null;
 });
 
-function cleanupModuleRelatedDocuments(mac, type) {
+function cleanupModuleRelatedDocuments(mac, type, pattern) {
      const itemsRef = admin.database().ref(type).orderByChild("mac").equalTo(mac);
-     deleteDocuments(itemsRef, type);
+     deleteDocuments(itemsRef, type, pattern);
 }
 
-function deleteDocuments(itemsRef, type) {
+function deleteDocuments(itemsRef, type, pattern) {
      // create a map with all children that need to be removed
      const updates = {};
      var count = 0;
+     var totalCount = 0;
      itemsRef.once("value", function(items) {
           items.forEach(item => {
-               updates[item.key] = null;
-               count ++;
+               totalCount++;
+               let message = "";
+               if (item.toJSON().message) {
+                    message = item.toJSON().message;
+               }
+               if (pattern == null || message.indexOf(pattern) >= 0) {
+                    updates[item.key] = null;
+                    count ++;
+               }
           });
-          functions.logger.log(`Deleting ${count} items of type '${type}`);
+          functions.logger.log(`Deleting ${count} items of type '${type}' with pattern '${pattern}' over a total of ${totalCount}`);
           if (count > 0) {
                // remove them all
                var delOld = admin.database().ref(type);
