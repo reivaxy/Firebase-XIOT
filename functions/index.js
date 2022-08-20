@@ -61,13 +61,14 @@ function translate(message, toLang) {
      return message;
 }
 
-exports.checkPing = functions.region('europe-west1').pubsub.schedule('every 5 minutes').onRun((context) => {
-     functions.logger.log('CheckPing function triggered every 5 minutes');
+exports.checkPing = functions.region('europe-west1').pubsub.schedule('every 15 minutes').onRun((context) => {
+     functions.logger.log('CheckPing function triggered every 15 minutes');
      const now = Math.ceil(Date.now() / 1000);
+     const mnCount = 15;
      // Pings are sent every 5mn so we check that there is at least one in the last 5mn and 5s (to avoid interval edge issue)
      // (there could be more than one if module is restarted for instance)
      // Idea: save the ping period in the module record, to react faster for module who need it (but also needs triggering this function more frequently...)
-     const last6mn = now - 305;
+     const lastXmn = now - mnCount*60;
      const modules = admin.database().ref('module');
      modules.once('value', function (modules) {
           modules.forEach(function (module) {
@@ -79,12 +80,12 @@ exports.checkPing = functions.region('europe-west1').pubsub.schedule('every 5 mi
 
                functions.logger.log(`Checking pings on module '${moduleName}'`);    
                const moduleLastHourPings = admin.database().ref('ping')
-                    .orderByChild(COMPOSITE_KEY_NAME).startAt(compositeKeyValue(mac, last6mn))
+                    .orderByChild(COMPOSITE_KEY_NAME).startAt(compositeKeyValue(mac, lastXmn))
                     .endAt(compositeKeyValue(mac, now));
 
                moduleLastHourPings.once('value', function (pings) {
                     const size = pings.numChildren();
-                    functions.logger.log(`Ping count in last 6mn for module '${moduleName}' : ${size}`);
+                    functions.logger.log(`Ping count in last ${mnCount}mn for module '${moduleName}' : ${size}`);
                     if (size == 0) {
                          functions.logger.log(`ALERT MODULE '${moduleName}' STOPPED !`);
                          var msg = translate(MSG_MODULE_OFFLINE, lang);

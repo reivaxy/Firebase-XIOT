@@ -54,6 +54,7 @@ let sortByTime = function (a, b) {
 }
 
 window.fetchData = function () {
+   document.getElementById('refresh').hidden = true;
    try {
       console.log("fetchData");
       const db = getDatabase();
@@ -103,7 +104,10 @@ window.fetchData = function () {
             alert(error);
          }
          
+      }).finally( e => {
+         document.getElementById('refresh').hidden = false;
       });
+
    } catch (error) {
       console.error(error);
    }
