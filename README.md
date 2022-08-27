@@ -3,6 +3,8 @@ https://firebase.google.com/docs/reference/node/firebase.database
 
 Run the emulators:
 
+Authorize once on Windows Powershell (as admin):Set-ExecutionPolicy -ExecutionPolicy RemoteSigned
+
 firebase emulators:start
 
 Only functions:
