@@ -1,0 +1,21 @@
+{
+  "projects": {
+    "default": "iotfeeder-22b9b"
+  },
+  "targets": {
+    "iotfeeder-22b9b-default-rtdb": {
+      "database": {
+        "default": [
+          "iotfeeder-22b9b-default-rtdb"
+        ]
+      }
+    },
+    "iotfeeder-22b9b": {
+      "database": {
+        "default": [
+          "iotfeeder-22b9b-default-rtdb"
+        ]
+      }
+    }
+  }
+}

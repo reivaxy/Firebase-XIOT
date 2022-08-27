@@ -237,7 +237,10 @@ window.displayTabs = function () {
             let newPing = document.createElement("div");
             let initText = getFormattedDate(ping.gcp_timestamp) + (ping.init_reason ? ": " + ping.init_reason : "");
             newPing.innerText = initText;
-            initDiv.appendChild(newPing);
+            initDiv.insertBefore(newPing, initDiv.firstChild.nextSibling);
+            if (isToday(ping.gcp_timestamp)) {
+               newPing.className = "today";
+            }            
          }
       }
 
@@ -247,8 +250,10 @@ window.displayTabs = function () {
          let newAlert = document.createElement("div");
          let initText = getFormattedDate(alert.gcp_timestamp) + ": " + alert.message;
          newAlert.innerText = initText;
-         alertDiv.appendChild(newAlert);
-         
+         alertDiv.insertBefore(newAlert, alertDiv.firstChild.nextSibling);
+         if (isToday(alert.gcp_timestamp)) {
+            newAlert.className = "today";
+         }         
       }  
 
       let logs = moduleLogs[m];
@@ -261,7 +266,10 @@ window.displayTabs = function () {
          if (!log.quantity) {
             newLog.className = "nofoodlog"
          }
-         logDiv.appendChild(newLog);
+         if (isToday(log.gcp_timestamp)) {
+            newLog.className = newLog.className + " today";
+         }
+         logDiv.insertBefore(newLog, logDiv.firstChild.nextSibling);
       }      
 
       window.logMinHeapBlockLog = 100000;
@@ -414,7 +422,10 @@ window.displayTabs = function () {
                            + "<br>Local IP: <a target=_new href='http://" + modules[i].ip + "'>" + modules[i].ip + "</a>"
                            + "<br>Mac address: " + modules[i].mac
                            + "<br>Pushover config: " + (modules[i].ta != undefined && modules[i].tu != undefined)
-                           + "<br>IR detector: " + modules[i].with_ir;
+                           + "<br>IR detector: " + modules[i].with_ir
+                           + '<hr><div align="center" style="color:red">ATTENTION: Les messages les plus récents sont maintenant affichés en premier</div>'
+                           + '<div align="center" style="color:blue">En bleu: les messages du jour</div>'
+                           ;
                            
       moduleDiv.appendChild(heapDiv);
       moduleDiv.appendChild(infoDiv);
@@ -433,6 +444,14 @@ window.displayTabs = function () {
       window.selectTabByMac(modules[0].mac);
    }
 
+}
+
+window.isToday = function(someDate) {
+   let d = new Date(someDate * 1000);
+   let today = new Date();
+   return (d.getDate() == today.getDate() 
+         && d.getMonth() == today.getMonth()
+         && d.getFullYear() == today.getFullYear()) ;
 }
 
 window.filterLogs = function(evt) {
