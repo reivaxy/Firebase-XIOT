@@ -14,6 +14,8 @@ firebase emulators:start --only functions
 Have webpack build on modifications:
 npm run watch
 
+Update npm packages for function ALWAYS from the functions directory
+
 Deploy
 
 firebase deploy --only functions

@@ -13,7 +13,11 @@ const functions = require("firebase-functions");
 
 // The Firebase Admin SDK to access the Firebase Realtime Database.
 const admin = require("firebase-admin");
-admin.initializeApp();
+var serviceAccount = require("./keys/iotfeeder-22b9b-62106f43c8b8.json");
+admin.initializeApp({
+     credential: admin.credential.cert(serviceAccount),
+     databaseURL: "https://iotfeeder-22b9b-default-rtdb.europe-west1.firebasedatabase.app"
+});
 
 const needle = require('needle');
 
@@ -41,6 +45,7 @@ exports.deleteOldItems = functions.region('europe-west1').pubsub.schedule("every
 function deleteOld(type) {
      functions.logger.log(`Deleting ${type}s older than ${PING_MAX_AGE_D} days`);
      const cutoff = Math.ceil(Date.now() / 1000) - PING_MAX_AGE_S ;
+     functions.logger.log("Cutoff: " + cutoff);
      const itemsRef = admin.database().ref(type).orderByChild(GCP_TIMESTAMP_NAME).endAt(cutoff);
      deleteDocuments(itemsRef, type);
 }
@@ -171,6 +176,7 @@ function deleteDocuments(itemsRef, type, pattern) {
      var totalCount = 0;
      itemsRef.once("value", function(items) {
           items.forEach(item => {
+               //functions.logger.log(`Deleting ${type} ${count}`);
                totalCount++;
                let message = "";
                if (item.toJSON().message) {
@@ -179,7 +185,12 @@ function deleteDocuments(itemsRef, type, pattern) {
                if (pattern == null || message.indexOf(pattern) >= 0) {
                     updates[item.key] = null;
                     count ++;
+                    if (count > 40000) {
+                         functions.logger.log(`Reached limit ${count-1} items to delete, type '${type}' with pattern '${pattern}'.`);
+                         return -1;
+                    }
                }
+
           });
           functions.logger.log(`Deleting ${count} items of type '${type}' with pattern '${pattern}' over a total of ${totalCount}`);
           if (count > 0) {
